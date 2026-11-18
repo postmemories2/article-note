@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>기사 프로젝트 노트</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --card: #ffffff;
+    --ink: #1d1d1b;
+    --muted: #6f6b63;
+    --line: #e3dfd6;
+    --accent: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { border-bottom: 3px solid var(--ink); padding-bottom: 12px; margin-bottom: 20px; }
+  header .kicker { font-size: 12px; letter-spacing: .12em; color: var(--accent); font-weight: 700; }
+  header h1 {
+    margin: 4px 0 0;
+    font-family: "Noto Serif KR", "Nanum Myeongjo", "Apple SD Gothic Neo", Georgia, serif;
+    font-size: 26px; line-height: 1.25;
+  }
+  section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  h2 {
+    margin: 0 0 10px;
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    letter-spacing: .04em;
+  }
+  input[type="text"], textarea {
+    width: 100%;
+    font: inherit; font-size: 16px; /* 16px: iOS 확대 방지 */
+    color: var(--ink);
+    background: transparent;
+    border: 0; border-bottom: 1px solid var(--line);
+    padding: 8px 2px;
+    border-radius: 0;
+    outline: none;
+  }
+  input[type="text"]:focus, textarea:focus { border-bottom-color: var(--ink); }
+  ::placeholder { color: #aaa59b; }
+  .topic {
+    display: inline-block;
+    font-weight: 700; font-size: 18px;
+    padding: 4px 14px;
+    background: var(--ink); color: #fff;
+    border-radius: 999px;
+  }
+  ul.todo { list-style: none; margin: 0; padding: 0; }
+  ul.todo li { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+  ul.todo input[type="checkbox"] {
+    width: 24px; height: 24px; flex: none;
+    accent-color: var(--accent);
+  }
+  ul.todo input[type="text"] { flex: 1; }
+  ul.todo li.done input[type="text"] { text-decoration: line-through; color: var(--muted); }
+  .log { border-top: 1px solid var(--line); padding: 10px 0; }
+  .log:first-of-type { border-top: 0; padding-top: 0; }
+  .log .date { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .log .today { font-size: 11px; background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 6px; margin-left: 6px; font-weight: 600; }
+  button {
+    font: inherit; font-size: 14px;
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--ink); border-radius: 8px;
+    padding: 8px 14px; margin-top: 8px;
+    cursor: pointer;
+  }
+  button:active { background: var(--ink); color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">ARTICLE PROJECT NOTE</div>
+    <h1>기사 프로젝트 노트</h1>
+  </header>
+
+  <section>
+    <h2>프로젝트 한 줄</h2>
+    <input type="text" id="brief" data-key="brief" placeholder="브리프 한 줄을 적어 주세요" autocomplete="off">
+  </section>
+
+  <section>
+    <h2>주제</h2>
+    <span class="topic">경제</span>
+  </section>
+
+  <section>
+    <h2>할 일 체크리스트</h2>
+    <ul class="todo" id="todo"></ul>
+  </section>
+
+  <section>
+    <h2>날짜별 기록</h2>
+    <div id="logs"></div>
+    <button type="button" id="addDay">+ 다음 날 추가</button>
+  </section>
+</div>
+
+<script>
+(function () {
+  var KEY = "article-project-note-v1";
+  var state = { fields: {}, todo: [], logs: [] };
+
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved) state = JSON.parse(saved);
+  } catch (e) {}
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  // 프로젝트 한 줄
+  var brief = document.getElementById("brief");
+  brief.value = (state.fields && state.fields.brief) || "";
+  brief.addEventListener("input", function () {
+    state.fields = state.fields || {};
+    state.fields.brief = brief.value;
+    save();
+  });
+
+  // 체크리스트 5개
+  var todoEl = document.getElementById("todo");
+  if (!state.todo || state.todo.length !== 5) {
+    state.todo = [];
+    for (var i = 0; i < 5; i++) state.todo.push({ text: "", done: false });
+  }
+  state.todo.forEach(function (item, idx) {
+    var li = document.createElement("li");
+    if (item.done) li.className = "done";
+    var cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = !!item.done;
+    cb.setAttribute("aria-label", "할 일 " + (idx + 1) + " 완료");
+    var tx = document.createElement("input");
+    tx.type = "text"; tx.value = item.text || "";
+    tx.placeholder = "할 일 " + (idx + 1);
+    cb.addEventListener("change", function () {
+      item.done = cb.checked;
+      li.className = cb.checked ? "done" : "";
+      save();
+    });
+    tx.addEventListener("input", function () { item.text = tx.value; save(); });
+    li.appendChild(cb); li.appendChild(tx);
+    todoEl.appendChild(li);
+  });
+
+  // 날짜별 기록 (11/18부터)
+  var YEAR = 2026;
+  function fmt(d) { return (d.getMonth() + 1) + "/" + d.getDate(); }
+  function dateFor(offset) { return new Date(YEAR, 10, 18 + offset); }
+  var logsEl = document.getElementById("logs");
+  if (!state.logs || !state.logs.length) state.logs = [{ text: "" }];
+
+  function renderLogs() {
+    logsEl.innerHTML = "";
+    state.logs.forEach(function (log, idx) {
+      var wrap = document.createElement("div");
+      wrap.className = "log";
+      var label = document.createElement("div");
+      label.className = "date";
+      label.textContent = fmt(dateFor(idx));
+      if (idx === 0) {
+        var tag = document.createElement("span");
+        tag.className = "today"; tag.textContent = "오늘";
+        label.appendChild(tag);
+      }
+      var tx = document.createElement("input");
+      tx.type = "text"; tx.value = log.text || "";
+      tx.placeholder = idx === 0 ? "오늘 한 줄" : "한 줄 기록";
+      tx.addEventListener("input", function () { log.text = tx.value; save(); });
+      wrap.appendChild(label); wrap.appendChild(tx);
+      logsEl.appendChild(wrap);
+    });
+  }
+  renderLogs();
+
+  document.getElementById("addDay").addEventListener("click", function () {
+    state.logs.push({ text: "" });
+    save(); renderLogs();
+  });
+})();
+</script>
+</body>
+</html>
